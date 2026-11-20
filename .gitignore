@@ -1,0 +1,11 @@
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.venv/
+data/*.csv
+sql/*.db
+dashboard/powerbi_data/
+.DS_Store
+.env
+*.egg-info/
+sql/paysim.db

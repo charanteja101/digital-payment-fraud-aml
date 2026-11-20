@@ -1,0 +1,62 @@
+// DAX for the Fraud & AML dashboard.
+// Load dashboard/powerbi_data/scored_test.csv as a table named scored_test (columns are listed in dashboard/README.md).
+// Add the calculated columns first (Table tools -> New column), then the measures (Modeling -> New measure).
+
+// ---------- Calculated columns ----------
+
+amount_band =
+SWITCH(
+    TRUE(),
+    scored_test[amount] < 1000, "Under 1,000",
+    scored_test[amount] < 10000, "1,000-10,000",
+    scored_test[amount] < 100000, "10,000-100,000",
+    scored_test[amount] < 200000, "100,000-200,000",
+    "200,000+"
+)
+
+score_band =
+SWITCH(
+    TRUE(),
+    scored_test[fraud_probability] < 0.01, "Under 1%",
+    scored_test[fraud_probability] < 0.10, "1-10%",
+    scored_test[fraud_probability] < 0.50, "10-50%",
+    "50%+"
+)
+
+// ---------- Measures ----------
+// scored_test[outcome] is exported by dashboard/export_scored_test.py
+// (True positive / False positive / False negative / True negative).
+
+Total Transactions = COUNTROWS(scored_test)
+
+Actual Fraud Cases = CALCULATE(COUNTROWS(scored_test), scored_test[actual_fraud] = 1)
+
+Fraud Rate = DIVIDE([Actual Fraud Cases], [Total Transactions])
+
+Alerts Raised = CALCULATE(COUNTROWS(scored_test), scored_test[flagged] = 1)
+
+True Positives = CALCULATE(COUNTROWS(scored_test), scored_test[outcome] = "True positive")
+
+False Positives = CALCULATE(COUNTROWS(scored_test), scored_test[outcome] = "False positive")
+
+False Negatives = CALCULATE(COUNTROWS(scored_test), scored_test[outcome] = "False negative")
+
+Recall = DIVIDE([True Positives], [True Positives] + [False Negatives])
+
+Precision = DIVIDE([True Positives], [True Positives] + [False Positives])
+
+False Positive Rate = DIVIDE([False Positives], CALCULATE(COUNTROWS(scored_test), scored_test[actual_fraud] = 0))
+
+Fraud Amount Caught = CALCULATE(SUM(scored_test[amount]), scored_test[outcome] = "True positive")
+
+Fraud Amount Missed = CALCULATE(SUM(scored_test[amount]), scored_test[outcome] = "False negative")
+
+Share of Fraud Amount Caught = DIVIDE([Fraud Amount Caught], [Fraud Amount Caught] + [Fraud Amount Missed])
+
+Legit Amount Flagged = CALCULATE(SUM(scored_test[amount]), scored_test[outcome] = "False positive")
+
+Existing Rule Recall =
+DIVIDE(
+    CALCULATE(COUNTROWS(scored_test), scored_test[existing_flag] = 1, scored_test[actual_fraud] = 1),
+    [Actual Fraud Cases]
+)
